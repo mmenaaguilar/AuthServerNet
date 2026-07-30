@@ -20,7 +20,6 @@ public class TokenService : ITokenService
 
     public async Task<string> CrearTokenAsync(ApplicationUser usuario)
     {
-        // 1. Mapeo de claims esenciales
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.NameId, usuario.Id),
@@ -29,18 +28,15 @@ public class TokenService : ITokenService
             new Claim("nombreCompleto", usuario.NombreCompleto ?? string.Empty)
         };
 
-        // 2. Roles del usuario
         var roles = await _userManager.GetRolesAsync(usuario);
         claims.AddRange(roles.Select(rol => new Claim(ClaimTypes.Role, rol)));
 
-        // 3. Lectura de las claves exactas desde JwtSettings
         var secretKey = _config["JwtSettings:SecretKey"] 
             ?? throw new InvalidOperationException("Falta configurar JwtSettings:SecretKey.");
             
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // 4. Expiración dinámica desde appsettings (default 60 min si falla la lectura)
         _ = double.TryParse(_config["JwtSettings:ExpirationInMinutes"], out double expirationMinutes);
         if (expirationMinutes <= 0) expirationMinutes = 60;
 
