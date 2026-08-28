@@ -32,3 +32,6 @@ appsettings.Development.local.json
 Thumbs.db
 desktop.ini
 $RECYCLE.BIN/
+
+AuthServer.API/appsettings.Development.json
+AuthServer.API/appsettings.json

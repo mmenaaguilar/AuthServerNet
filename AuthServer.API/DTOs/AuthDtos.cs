@@ -32,4 +32,11 @@ namespace AuthServer.API.DTOs
         public string Email { get; set; } = string.Empty;
         public DateTime Expiracion { get; set; }
     }
+
+    public class GoogleLoginResultDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string NombreCompleto { get; set; } = string.Empty;
+    }
 }
