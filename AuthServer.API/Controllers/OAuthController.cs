@@ -19,8 +19,13 @@ public class OAuthController : ControllerBase
 
     [HttpGet("{proveedor}/login")]
     [ProducesResponseType(StatusCodes.Status302Found)]
-    public IActionResult Login([FromRoute] string proveedor, [FromQuery] string redirectUrl = "http://127.0.0.1:5500/index.html")
+    public IActionResult Login([FromRoute] string proveedor, [FromQuery] string redirectUrl = "")
     {
+        if (string.IsNullOrWhiteSpace(redirectUrl))
+        {
+            return BadRequest(new { mensaje = "La url es obligatorio." });
+        }
+
         var properties = new AuthenticationProperties
         {
             RedirectUri = Url.Action(nameof(Callback), "OAuth", new { proveedor })
@@ -33,6 +38,7 @@ public class OAuthController : ControllerBase
 
     [HttpGet("{proveedor}/callback")]
     [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Callback([FromRoute] string proveedor)
     {
@@ -49,8 +55,10 @@ public class OAuthController : ControllerBase
 
             var authResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
             
-            var frontendUrl = authResult?.Properties?.Items["FrontendRedirectUrl"] 
-                              ?? "http://127.0.0.1:5500/index.html";
+            if (authResult?.Properties?.Items.TryGetValue("FrontendRedirectUrl", out var frontendUrl) != true || string.IsNullOrWhiteSpace(frontendUrl))
+            {
+                return BadRequest(new { mensaje = "No se encontró la URL de redirección del frontend en la sesión de autenticación." });
+            }
 
             var separator = frontendUrl.Contains("?") ? "&" : "?";
             var targetUrl = $"{frontendUrl}{separator}token={resultado.Token}&email={Uri.EscapeDataString(resultado.Email)}";
