@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Authentication;
 
 namespace AuthServer.API.Services;
 
-public interface IGoogleOAuthService
+public interface IOAuthService
 {
     AuthenticationProperties CrearPropertiesChallenge(string redirectUrl);
-    Task<GoogleLoginResultDto> LoginConGoogleAsync();
+    Task<GoogleLoginResultDto> LoginConProveedorAsync();
 }

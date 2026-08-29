@@ -10,11 +10,11 @@ namespace AuthServer.API.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 [Produces("application/json")]
-public class PruebaController : ControllerBase
+public class PerfilController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public PruebaController(UserManager<ApplicationUser> userManager)
+    public PerfilController(UserManager<ApplicationUser> userManager)
     {
         _userManager = userManager;
     }

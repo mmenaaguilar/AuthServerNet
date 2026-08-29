@@ -36,7 +36,11 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+builder.Services.AddScoped<GoogleOAuthService>();
+builder.Services.AddScoped<GitHubOAuthService>();
+
+builder.Services.AddScoped<IOAuthService>(sp => sp.GetRequiredService<GoogleOAuthService>());
+builder.Services.AddScoped<IOAuthService>(sp => sp.GetRequiredService<GitHubOAuthService>());
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"]!;
@@ -59,7 +63,7 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
 })
-.AddGoogle(googleOptions =>
+.AddGoogle("google", googleOptions =>
 {
     googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
     googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
@@ -67,6 +71,16 @@ builder.Services.AddAuthentication(options =>
     googleOptions.CallbackPath = "/signin-google";
     googleOptions.CorrelationCookie.SameSite = SameSiteMode.Lax;
     googleOptions.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+})
+.AddGitHub("github", githubOptions =>
+{
+    githubOptions.ClientId = builder.Configuration["Authentication:GitHub:ClientId"]!;
+    githubOptions.ClientSecret = builder.Configuration["Authentication:GitHub:ClientSecret"]!;
+    githubOptions.SignInScheme = IdentityConstants.ExternalScheme;
+    githubOptions.CallbackPath = "/signin-github";
+    githubOptions.Scope.Add("user:email");
+    githubOptions.CorrelationCookie.SameSite = SameSiteMode.Lax;
+    githubOptions.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
 builder.Services.AddControllers();

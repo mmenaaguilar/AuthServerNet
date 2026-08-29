@@ -1,5 +1,6 @@
 using AuthServer.API.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthServer.API.Controllers;
@@ -9,43 +10,44 @@ namespace AuthServer.API.Controllers;
 [Produces("application/json")]
 public class OAuthController : ControllerBase
 {
-    private readonly IGoogleOAuthService _googleOAuthService;
-    private readonly ILogger<OAuthController> _logger;
+    private readonly IServiceProvider _serviceProvider;
 
-    public OAuthController(
-        IGoogleOAuthService googleOAuthService,
-        ILogger<OAuthController> logger)
+    public OAuthController(IServiceProvider serviceProvider)
     {
-        _googleOAuthService = googleOAuthService;
-        _logger = logger;
+        _serviceProvider = serviceProvider;
     }
 
-    [HttpGet("google/login")]
+    [HttpGet("{proveedor}/login")]
     [ProducesResponseType(StatusCodes.Status302Found)]
-    public IActionResult LoginGoogle([FromQuery] string redirectUrl = "http://127.0.0.1:5500/index.html")
+    public IActionResult Login([FromRoute] string proveedor, [FromQuery] string redirectUrl = "http://127.0.0.1:5500/index.html")
     {
-
         var properties = new AuthenticationProperties
         {
-            RedirectUri = Url.Action(nameof(CallbackGoogle), "OAuth")
+            RedirectUri = Url.Action(nameof(Callback), "OAuth", new { proveedor })
         };
         
         properties.Items["FrontendRedirectUrl"] = redirectUrl;
 
-        return Challenge(properties, "Google");
+        return Challenge(properties, proveedor);
     }
 
-    [HttpGet("google/callback")]
+    [HttpGet("{proveedor}/callback")]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CallbackGoogle()
+    public async Task<IActionResult> Callback([FromRoute] string proveedor)
     {
-
         try
         {
-            var resultado = await _googleOAuthService.LoginConGoogleAsync();
+            IOAuthService oauthService = proveedor.ToLower() switch
+            {
+                "google" => _serviceProvider.GetRequiredService<GoogleOAuthService>(),
+                "github" => _serviceProvider.GetRequiredService<GitHubOAuthService>(),
+                _ => throw new InvalidOperationException($"El proveedor '{proveedor}' no está soportado.")
+            };
 
-            var authResult = await HttpContext.AuthenticateAsync("Identity.External");
+            var resultado = await oauthService.LoginConProveedorAsync();
+
+            var authResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
             
             var frontendUrl = authResult?.Properties?.Items["FrontendRedirectUrl"] 
                               ?? "http://127.0.0.1:5500/index.html";

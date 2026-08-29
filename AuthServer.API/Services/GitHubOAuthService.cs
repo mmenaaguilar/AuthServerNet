@@ -7,16 +7,16 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AuthServer.API.Services;
 
-public class GoogleOAuthService : IOAuthService
+public class GitHubOAuthService : IOAuthService
 {
-    private const string ProveedorGoogle = "Google";
+    private const string ProveedorGitHub = "GitHub";
 
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITokenService _tokenService;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public GoogleOAuthService(
+    public GitHubOAuthService(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
@@ -31,7 +31,7 @@ public class GoogleOAuthService : IOAuthService
     public AuthenticationProperties CrearPropertiesChallenge(string redirectUrl)
     {
         return _signInManager.ConfigureExternalAuthenticationProperties(
-            ProveedorGoogle, redirectUrl);
+            ProveedorGitHub, redirectUrl);
     }
 
     public async Task<GoogleLoginResultDto> LoginConProveedorAsync()
@@ -47,20 +47,20 @@ public class GoogleOAuthService : IOAuthService
 
             if (!authResult.Succeeded || authResult.Principal == null)
             {
-                throw new InvalidOperationException("No se pudo obtener la información del login externo desde la cookie Identity.External.");
+                throw new InvalidOperationException("No se pudo obtener la información de GitHub desde la cookie Identity.External.");
             }
 
             var providerKey = authResult.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(providerKey))
             {
-                throw new InvalidOperationException("No se encontró la clave del proveedor (ProviderKey/Subject).");
+                throw new InvalidOperationException("No se encontró la clave del proveedor (ProviderKey/Subject) para GitHub.");
             }
 
             info = new ExternalLoginInfo(
                 authResult.Principal,
-                ProveedorGoogle,
+                ProveedorGitHub,
                 providerKey,
-                ProveedorGoogle)
+                ProveedorGitHub)
             {
                 AuthenticationProperties = authResult.Properties
             };
@@ -74,7 +74,7 @@ public class GoogleOAuthService : IOAuthService
         if (resultadoSignIn.Succeeded)
         {
             usuario = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey)
-                ?? throw new InvalidOperationException("No se encontró el usuario vinculado con la cuenta de Google.");
+                ?? throw new InvalidOperationException("No se encontró el usuario vinculado con la cuenta de GitHub.");
         }
         else
         {
@@ -83,7 +83,7 @@ public class GoogleOAuthService : IOAuthService
             if (!resultadoVincular.Succeeded)
             {
                 throw new InvalidOperationException(
-                    "No se pudo vincular la cuenta de Google: "
+                    "No se pudo vincular la cuenta de GitHub: "
                     + string.Join("; ", resultadoVincular.Errors.Select(e => e.Description)));
             }
         }
@@ -100,15 +100,13 @@ public class GoogleOAuthService : IOAuthService
 
     private async Task<ApplicationUser> ObtenerOCrearUsuarioLocalAsync(ExternalLoginInfo info)
     {
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
+        // En GitHub el email puede venir en ClaimTypes.Email o urn:github:email
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email) 
+                    ?? info.Principal.FindFirstValue("urn:github:email");
+
         if (string.IsNullOrEmpty(email))
         {
-            throw new InvalidOperationException("Google no proporcionó un correo electrónico.");
-        }
-
-        if (!EmailVerificado(info))
-        {
-            throw new InvalidOperationException("El correo electrónico de Google no está verificado.");
+            throw new InvalidOperationException("GitHub no proporcionó un correo electrónico. Asegúrate de que el usuario tenga un email verificado.");
         }
 
         var usuario = await _userManager.FindByEmailAsync(email);
@@ -117,11 +115,15 @@ public class GoogleOAuthService : IOAuthService
             return usuario;
         }
 
+        var nombreCompleto = info.Principal.FindFirstValue(ClaimTypes.Name) 
+                             ?? info.Principal.FindFirstValue("urn:github:login") 
+                             ?? email;
+
         var nuevoUsuario = new ApplicationUser
         {
             UserName = email,
             Email = email,
-            NombreCompleto = info.Principal.FindFirstValue(ClaimTypes.Name) ?? email,
+            NombreCompleto = nombreCompleto,
             FechaCreacion = DateTime.UtcNow
         };
 
@@ -134,11 +136,5 @@ public class GoogleOAuthService : IOAuthService
         }
 
         return nuevoUsuario;
-    }
-
-    private static bool EmailVerificado(ExternalLoginInfo info)
-    {
-        var emailVerificado = info.Principal.FindFirstValue("email_verified");
-        return string.IsNullOrEmpty(emailVerificado) || (bool.TryParse(emailVerificado, out var verificado) && verificado);
     }
 }
