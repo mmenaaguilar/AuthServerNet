@@ -139,7 +139,7 @@ La configuración se encuentra en `AuthServer.API/appsettings.json`:
 El archivo `docker-compose.yml` levanta un servidor **SQL Server 2022** en el puerto `1433` con las siguientes credenciales por defecto:
 
 - **Usuario:** `sa`
-- **Contraseña:** `PrinceLOG4`
+- **Contraseña:** `Outhnet`
 - **Base de datos:** `AuthServerDb`
 
 ## 📁 Estructura del proyecto
